@@ -4,30 +4,20 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+.env
+venv/
+ENV/
 
 # Logs
 *.log
+log/
+logs/
+db_transfer.log
 
-# Local environment
-.env
-.venv
-venv/
-ENV/
+# Docker
+.docker/
+docker-compose.override.yml
+*.new
 
 # IDE
 .idea/
@@ -35,5 +25,10 @@ ENV/
 *.swp
 *.swo
 
-# Docker
-.docker/
+# Database
+*.sqlite3
+*.db
+
+# OS specific
+.DS_Store
+Thumbs.db

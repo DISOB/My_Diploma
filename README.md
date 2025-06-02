@@ -30,17 +30,6 @@ docker compose up --build
 3. Откройте дашборд:
 http://localhost:8501
 
-## 📁 Структура проекта
-
-```
-chatbot-dashboard/
-├── dashboard/          # Streamlit-дашборд
-├── parser/            # Парсер Excel-файла
-├── data/             # SQL-скрипты и данные
-├── docker-compose.yml
-├── Dockerfile
-└── README.md
-```
 
 ## 🛠 Технологии
 
