@@ -1,91 +1,99 @@
 import streamlit as st
+import pandas as pd
+from datetime import datetime, timedelta
+from src.views.standard import calculate_response_time
 
 def show_metrics(df):
-    """Отображение основных метрик"""
+    """Отображение основных метрик с возможностью клика"""
+    st.write("### 📈 Ключевые показатели")
+    
+    # Вычисляем время ответа сразу для всех метрик
+    if len(df) > 0:
+        df = calculate_response_time(df)
+    
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        # Отображение временного периода первым 
-        """
         if len(df) > 0:
-            period = f"{df['timestamp'].min().strftime('%H:%M')} - {df['timestamp'].max().strftime('%H:%M')}"
+            period = f"{df['timestamp'].min().strftime('%d.%m.%Y')} - {df['timestamp'].max().strftime('%d.%m.%Y')}"
         else:
             period = "Нет данных"
         st.metric("Временной период", period)
-        """
-        st.metric("Всего запросов", len(df))
+        
+        total_requests = len(df)
         success_rate = (df['satisfaction'] == 1).mean() * 100 if len(df) > 0 else 0
-        st.metric("Успешность ответов", f"{success_rate:.1f}%")
+        
+        col1_1, col1_2 = st.columns([2, 3])
+        with col1_1:
+            st.metric("Всего запросов", total_requests)
+        with col1_2:
+            if st.button("📊 К статистике →", use_container_width=True):
+                st.session_state.page = 'categories'
+        
+        col1_3, col1_4 = st.columns([2, 3])
+        with col1_3:
+            st.metric("Успешность ответов", f"{success_rate:.1f}%")
+        with col1_4:
+            if st.button("📈 К анализу →", use_container_width=True):
+                st.session_state.page = 'success_rate'
     
     with col2:
         if len(df) > 0:
-            total_errors = len(df[df['satisfaction'] == 0])
-            error_rate = (total_errors / len(df) * 100)
-            error_warning = " ⚠️ Высокий уровень ошибок!" if error_rate > 30 else ""
+            # Анализ по категориям
+            categories = df['category'].value_counts()
+            main_category = categories.index[0] if not categories.empty else "Нет данных"
+            category_count = categories.iloc[0] if not categories.empty else 0
             
-            # Расчет процента некорректных ответов
-            incorrect_count = len(df[df['error_category'] == 'incorrect_answer'])
-            incorrect_rate = (incorrect_count / total_errors * 100) if total_errors > 0 else 0
-            incorrect_warning = " ⚠️ Высокий уровень некорректных ответов!" if incorrect_rate > 30 else ""
-            
-            # Расчет процента галлюцинаций
-            hallucination_count = len(df[df['error_category'] == 'hallucination'])
-            hallucination_rate = (hallucination_count / total_errors * 100) if total_errors > 0 else 0
-            hallucination_warning = " ⚠️ Высокий уровень галлюцинаций!" if hallucination_rate > 30 else ""
-            
-            # Отображение метрик
-            if error_rate > 30:
-                st.markdown(
-                    f"""
-                    <div style="background-color: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: 5px; margin: 5px 0;">
-                        <strong>Количество ошибок:</strong> {total_errors} ({error_rate:.1f}%){error_warning}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            # Анализ подкатегорий для категории "Учеба"
+            study_df = df[df['category'] == 'Учеба']
+            if not study_df.empty:
+                subcategories = study_df['subcategory'].value_counts()
+                main_subcategory = subcategories.index[0] if not subcategories.empty else "Нет данных"
+                subcategory_count = subcategories.iloc[0] if not subcategories.empty else 0
             else:
-                st.metric("Количество ошибок", 
-                         f"{total_errors} ({error_rate:.1f}%)")
+                main_subcategory = "Нет данных"
+                subcategory_count = 0
             
-            if incorrect_rate > 30:
-                st.markdown(
-                    f"""
-                    <div style="background-color: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: 5px; margin: 5px 0;">
-                        <strong>Процент некорректных ответов:</strong> {incorrect_rate:.1f}% от ошибок{incorrect_warning}
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-            else:
-                st.metric("Процент некорректных ответов", 
-                         f"{incorrect_rate:.1f}% от ошибок")
+            col2_1, col2_2 = st.columns([2, 3])
+            with col2_1:
+                st.metric("Основная категория", f"{main_category} ({category_count})")
+            with col2_2:
+                if st.button("🔍 К категориям →", use_container_width=True):
+                    st.session_state.page = 'categories'
             
-            if hallucination_rate > 30:
-                st.markdown(
-                    f"""
-                    <div style="background-color: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: 5px; margin: 5px 0;">
-                        <strong>Процент галлюцинаций:</strong> {hallucination_rate:.1f}% от ошибок{hallucination_warning}
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-            else:
-                st.metric("Процент галлюцинаций", 
-                         f"{hallucination_rate:.1f}% от ошибок", 
-                         delta=-hallucination_rate, 
-                         delta_color="inverse")
+            col2_3, col2_4 = st.columns([2, 3])
+            with col2_3:
+                st.metric("Основная подкатегория учебы", f"{main_subcategory} ({subcategory_count})")
+            with col2_4:
+                if st.button("📚 К запросам →", use_container_width=True):
+                    st.session_state.page = 'categories'
         else:
-            # Отображение нулевых метрик при отсутствии данных
-            st.metric("Количество ошибок", "0 (0%)")
-            st.metric("Процент некорректных ответов", "0% от ошибок")
-            st.metric("Процент галлюцинаций", "0% от ошибок")
-
+            st.metric("Основная категория", "Нет данных")
+            st.metric("Основная подкатегория учебы", "Нет данных")
+    
     with col3:
         if len(df) > 0:
+            avg_response_time = df['response_time'].mean()
+            
+            col3_1, col3_2 = st.columns([2, 3])
+            with col3_1:
+                st.metric("Среднее время ответа", f"{avg_response_time:.1f} сек")
+            with col3_2:
+                if st.button("⏱️ Ко времени →", use_container_width=True):
+                    st.session_state.page = 'response_time'
+            
+            # Количество успешных/неуспешных ответов
             satisfied_count = len(df[df['satisfaction'] == 1])
             unsatisfied_count = len(df[df['satisfaction'] == 0])
+            
+            col3_3, col3_4 = st.columns([2, 3])
+            with col3_3:
+                st.metric("Удовлетворенные", f"{satisfied_count} (👍)")
+                st.metric("Неудовлетворенные", f"{unsatisfied_count} (👎)")
+            with col3_4:
+                if st.button("📊 К оценкам →", use_container_width=True):
+                    st.session_state.page = 'success_rate'
         else:
-            satisfied_count = 0
-            unsatisfied_count = 0
-        
-        st.metric("Удовлетворенные ответы", f"{satisfied_count} (👍)")
-        st.metric("Неудовлетворенные ответы", f"{unsatisfied_count} (👎)")
+            st.metric("Среднее время ответа", "Нет данных")
+            st.metric("Удовлетворенные ответы", "0")
+            st.metric("Неудовлетворенные ответы", "0")
