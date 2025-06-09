@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
+import pandas as pd
 import psycopg2
+from psycopg2.extras import execute_batch
 from config import DB_CONFIG
 
 def parse_log_line(line):
@@ -51,5 +53,52 @@ def load_logs_to_db():
     cur.close()
     conn.close()
 
+def load_csv_to_db():
+    # Подключаемся к базе данных
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    
+    # Очищаем таблицу
+    cur.execute('TRUNCATE TABLE chatbot_logs')
+    
+    # Читаем CSV файл
+    df = pd.read_csv('chatbotlog.csv')
+    
+    # Подготавливаем данные для вставки
+    data = []
+    for _, row in df.iterrows():
+        # Преобразуем строки в объекты datetime и извлекаем нужные компоненты
+        date = pd.to_datetime(row['Дата']).strftime('%Y-%m-%d')
+        question_time = pd.to_datetime(row['Время вопроса']).strftime('%H:%M:%S')
+        answer_time = pd.to_datetime(row['Время ответа']).strftime('%H:%M:%S')
+        
+        data.append((
+            date,
+            question_time,
+            answer_time,
+            row['Имя'],
+            row['Кампус'],
+            row['Уровень образования'],
+            row['Категория'],
+            row['Подкатегория'] if pd.notna(row['Подкатегория']) else None,
+            row['Запрос'],
+            row['Ответ'],
+            row['Доволен']
+        ))
+    
+    # Вставляем данные пакетами
+    execute_batch(cur, '''
+        INSERT INTO chatbot_logs 
+        (date, question_time, answer_time, name, campus, 
+         education_level, category, subcategory, query, 
+         response, satisfaction)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ''', data)
+    
+    # Сохраняем изменения и закрываем соединение
+    conn.commit()
+    cur.close()
+    conn.close()
+
 if __name__ == '__main__':
-    load_logs_to_db()
+    load_csv_to_db()

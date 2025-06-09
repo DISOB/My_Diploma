@@ -14,7 +14,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: bash -c "python load_logs.py && streamlit run app.py --server.address 0.0.0.0"
+    command: bash -c "sleep 3 && python create_db.py && python -c 'from load_logs import load_csv_to_db; load_csv_to_db()' && streamlit run app.py --server.address 0.0.0.0"
     volumes:
       - .:/app
     restart: unless-stopped
