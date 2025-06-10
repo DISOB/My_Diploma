@@ -6,7 +6,17 @@ import pandas as pd
 
 def show_developer_view(df):
     """Отображение детального анализа категорий"""
-    tab1, tab2, tab3 = st.tabs(["📊 Анализ категорий", "📈 Временной анализ", "📝 Детальные данные"])
+    # Кнопка возврата на главную
+    col_back, col_title = st.columns([1, 4])
+    with col_back:
+        if st.button("← На главную"):
+            st.session_state.page = 'main'
+            st.rerun()
+            
+    with col_title:
+       # st.title("Анализ категорий")
+    
+     tab1, tab2, tab3 = st.tabs(["📊 Анализ категорий", "📈 Временной анализ", "📝 Детальные данные"])
     
     with tab1:
         show_category_analysis(df)
@@ -43,10 +53,15 @@ def show_category_analysis(df):
     # Анализ подкатегорий учебных запросов
     study_df = df[df['category'] == 'Учеба']
     if not study_df.empty:
+        # Добавляем якорь для прокрутки
+        st.markdown("<div id='subcategories'></div>", unsafe_allow_html=True)
+        
         subcategory_stats = study_df.groupby('subcategory', as_index=False).agg({
             'satisfaction': ['count', lambda x: (x == 1).mean() * 100]
         })
         subcategory_stats.columns = ['subcategory', 'count', 'success_rate']
+        
+       
         
         fig_subcategories = px.bar(
             subcategory_stats,
@@ -125,29 +140,56 @@ def show_detailed_data(df):
     # Фильтры для детальных данных
     satisfaction_filter = st.selectbox(
         "Фильтр по успешности",
-        ['Все', 'Успешные', 'Неуспешные']
+        ['Все', 'Удовлетворительно', 'Неудовлетворительно']
     )
     
+    # Определяем колонки и их русские названия
+    columns_to_show = {
+        'date': 'Дата',
+        'question_time': 'Время вопроса',
+        'answer_time': 'Время ответа',
+        'name': 'Имя',
+        'campus': 'Кампус',
+        'education_level': 'Уровень образования',
+        'category': 'Категория',
+        'subcategory': 'Подкатегория',
+        'query': 'Запрос',
+        'response': 'Ответ',
+        'satisfaction': 'Статус'
+    }
+    
     # Применяем фильтр
-    if satisfaction_filter == 'Успешные':
+    if satisfaction_filter == 'Удовлетворительно':
         filtered_df = df[df['satisfaction'] == 1]
-    elif satisfaction_filter == 'Неуспешные':
+    elif satisfaction_filter == 'Неудовлетворительно':
         filtered_df = df[df['satisfaction'] == 0]
     else:
         filtered_df = df
     
-    # Отображаем данные
-    columns_to_show = ['timestamp', 'category', 'subcategory', 'query', 'response', 'satisfaction']
+    # Подготавливаем данные
+    display_df = (filtered_df[columns_to_show.keys()]
+                 .sort_values(['date', 'question_time'], ascending=[False, False])
+                 .rename(columns=columns_to_show)
+                 .copy())
+    
+    # Меняем значения в столбце статуса
+    display_df['Статус'] = display_df['Статус'].map({
+        1: 'Удовлетворительно',
+        0: 'Неудовлетворительно'
+    })
+    
+    # Отображаем таблицу
     st.dataframe(
-        filtered_df[columns_to_show].sort_values('timestamp', ascending=False).reset_index(drop=True),
+        display_df.reset_index(drop=True),
         hide_index=True
     )
     
-    # Экспорт
+    # Экспорт данных
     st.download_button(
         "📥 Скачать данные (CSV)",
-        filtered_df[columns_to_show].to_csv(index=False).encode('utf-8'),
+        display_df.to_csv(index=False).encode('utf-8-sig'),
         "chat_analysis.csv",
         "text/csv",
         key='download-csv'
     )
+
